@@ -9,6 +9,9 @@ class Default(SB):
     HOST = 'dev.' + SR.DOMAIN
     ENDPOINT = SR.FULL_PROTOCOL + SR.HOST
     ENDPOINT2 = SR(lambda SR: SR.FULL_PROTOCOL + SR.HOST)
+    NET = -5
+    LOSSES = -SR.NET
+    DIFFERENCE = abs(SR.NET)
 
 
 class Dev(Default):

@@ -45,17 +45,44 @@ class SettingReference(object):
 
         return value
 
-    def __add__(left, right):
-        return SRPlus(left, right)
 
-    def __radd__(right, left):
-        return SRPlus(left, right)
+def operator(name):
+    """
+    Operator factory
+    """
+    def __op__(*args):
+        return SROperator(name, args)
+    __op__.name = name
 
-    def __sub__(left, right):
-        return SRSub(left, right)
+    return __op__
+unary_operators = ['__not__', 'truth', '__abs__', '__index__', '__invert__',
+    '__neg__', '__pos__',
+]
+binary_operators = ['__lt__', '__le__', '__eq__', '__ne__', '__ge__', '__gt__',
+    '__add__', '__and__', '__div__', '__floordiv__', '__lshift__', '__mod__',
+    '__mul__', '__sub__', '__or__', '__pow__', '__rshift__', '__sub__',
+    '__turediv__', '__xor__', '__concat__', '__contains__', 'is_', 'is_not'
+]
+for op in unary_operators + binary_operators:
+    setattr(SettingReference, op, operator(op))
 
-    def __rsub__(right, left):
-        return SRSub(left, right)
+
+def r_binary_operator(name):
+    """
+    Reversed binary operator factory
+    """
+    r_name = name.replace('__r', '__')
+    def __rbinop__(self, other):
+        return SROperator(r_name, (other, self))
+    __rbinop__.name = name
+
+    return __rbinop__
+r_binary_operators = ['__radd__', '__rand__', '__rdiv__', '__rfloordiv__',
+    '__rlshift__', '__rmod__', '__rmul__', '__rsub__', '__rpow__', '__rrshift__',
+    '__rsub__', '__rtruediv__', '__rxor__', '__rconcat__'
+]
+for r_op in r_binary_operators:
+    setattr(SettingReference, r_op, r_binary_operator(r_op))
 
 
 class SRPrimitive(SettingReference):
@@ -75,33 +102,22 @@ class SRPrimitive(SettingReference):
         return value
 
 
-class SRPlus(SettingReference):
-    def __init__(self, left, right):
-        super(SRPlus, self).__init__()
-        self.left = left
-        self.right = right
+class SROperator(SettingReference):
+    """
+    A binary or unary operation of two items
+    """
+    def __init__(self, operation, args):
+        self.operation = operation
+        self.args = args
 
     def __repr__(self):
-        return '%s + %s' % (self.left, self.right)
+        return '%s(%s)' % (self.operation, ', '.join(map(repr, self.args)))
 
     def dereference_full(self, context):
-        left = dereference_item(self.left, context)
-        right = dereference_item(self.right, context)
+        dargs = [dereference_item(arg, context) for arg in self.args]
+        value = getattr(dargs[0], self.operation)(*dargs[1:])
 
-        return left + right
-
-
-class SRSub(SettingReference):
-    def __init__(self, left, right):
-        super(SRSub, self).__init__()
-        self.left = left
-        self.right = right
-
-    def dereference_full(self, context):
-        left = dereference_item(self.left, context)
-        right = dereference_item(self.right, context)
-
-        return left - right
+        return value
 
 
 class SRComputed(SettingReference):
