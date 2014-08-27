@@ -1,9 +1,8 @@
-from resettings import SettingsBag as SB
-
+from resettings import SettingsBag as SB, setting_reference_factory as SR
 
 class Default(SB):
     DEBUG = True
-    TEMPLATE_DEBUG = DEBUG
+    TEMPLATE_DEBUG = SR.DEBUG
 
 
 class Dev(Default):
