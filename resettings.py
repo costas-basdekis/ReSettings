@@ -2,17 +2,14 @@ from utils import class_public_dict
 
 
 class DereferenceContext(object):
+    """
+    Used to track cyclic dependencies, and keeping a cache for computed items
+    """
     def __init__(self, source, cache=None, chain_set=None, chain=None):
         self.source = source
         self.cache = cache or {}
         self.chain_set = chain_set or set()
         self.chain = chain or tuple()
-
-    def __str__(self):
-        return repr(self)
-
-    def __unicode__(self):
-        return repr(self)
 
     def extend(self, item):
         if item in self.chain_set:
@@ -26,6 +23,10 @@ class DereferenceContext(object):
 
 
 class SettingReference(object):
+    """
+    A basic observable, that can be combined with other for simple expression
+    capturing
+    """
     def __init__(self):
         self.__cached__ = False
         self.__value__ = None
@@ -58,6 +59,9 @@ class SettingReference(object):
 
 
 class SRPrimitive(SettingReference):
+    """
+    The value of a setting
+    """
     def __init__(self, name):
         super(SRPrimitive, self).__init__()
         self.name = name
@@ -100,15 +104,62 @@ class SRSub(SettingReference):
         return left - right
 
 
+class SRComputed(SettingReference):
+    """
+    Dynamically compute a setting by using a callback in the form of:
+    lambda SR: ...
+    where `SR.setting` returns the calculated `setting` value
+    """
+    def __init__(self, callback):
+        super(SRComputed, self).__init__()
+        self.callback = callback
+
+    def dereference_full(self, context):
+        derefrencer = Dereferncer(context)
+        value = self.callback(derefrencer)
+        return value
+
+
 class SettingReferenceFactory(dict):
+    """
+    Sortcut for creating combinamble refernces
+    """
     def __getattribute__(self, name):
+        """
+        Dot notation: SR.setting
+        """
         if name not in self:
             self[name] = SRPrimitive(name)
         return self[name]
+
+    def __call__(self, callback):
+        """
+        Call notation: SR(lambda SR:...)
+        """
+        if callback not in self:
+            self[callback] = SRComputed(callback)
+        return self[callback]
 setting_reference_factory = SettingReferenceFactory()
 
 
+class Dereferncer(object):
+    """
+    Proxy object for use inside lambdas in computed
+    """
+    def __init__(self, context):
+        self.context = context
+
+    def __getattribute__(self, name):
+        context = super(Dereferncer, self).__getattribute__('context')
+        reference = getattr(setting_reference_factory, name)
+        value = dereference_item(reference, context)
+        return value
+
+
 def dereference_item(item, context):
+    """
+    Sortcut for getting the real value of an item
+    """
     if not isinstance(item, SettingReference):
         return item
 
@@ -116,6 +167,9 @@ def dereference_item(item, context):
 
 
 def dereference_dict(source):
+    """
+    Sortcut for getting the real values inside a dict
+    """
     context = DereferenceContext(source)
     return {
         key: dereference_item(value, context)

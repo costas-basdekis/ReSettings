@@ -8,6 +8,7 @@ class Default(SB):
     DOMAIN = 'example.com'
     HOST = 'dev.' + SR.DOMAIN
     ENDPOINT = SR.FULL_PROTOCOL + SR.HOST
+    ENDPOINT2 = SR(lambda SR: SR.FULL_PROTOCOL + SR.HOST)
 
 
 class Dev(Default):
